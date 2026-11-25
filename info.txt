@@ -226,3 +226,50 @@ Checks: pytest -> 18 passed; ruff -> clean
     git add src/audio.py tests app info.txt
     git commit -m "Fix chunk() tail merge bug (Kaggle run crash); add Gradio demo"
     git push
+
+---------------------------------------------------------
+M6: DONE  (Kaggle kernel version 2: COMPLETE)
+---------------------------------------------------------
+  Kernel: https://www.kaggle.com/code/atomicboyy/voice-disease-screening (private)
+  Full run: 786 recordings, 46 speakers, acoustic + WavLM + Whisper, ~9 min on T4.
+  Outputs downloaded to outputs/kaggle/ (gitignored). Tables + plots copied to
+  docs/results/ so they can be committed and shown in the README.
+  Best: acoustic + SVM, balanced accuracy 0.977 ± 0.039, ROC-AUC 0.994 ± 0.013.
+  Ranking: acoustic (0.977) > WavLM (0.921) > Whisper (0.882), best model of each.
+  Leaky record-level split inflates EVERY model (e.g. whisper+mlp 0.878 -> 0.937).
+
+  !! Scores are suspiciously high. Sanity check I ran locally on the downloaded
+     Kaggle features: CV on 16 kHz recordings only (17 PD vs 22 HC speakers) ->
+     acoustic+SVM still 0.988. So the sample rate isn't the shortcut, but other
+     session/microphone differences between PD and controls can't be ruled out.
+     README says this explicitly. (docs/results/results_16k_only.csv)
+
+---------------------------------------------------------
+M7: DONE  (demo + README with real numbers)
+---------------------------------------------------------
+  app/demo.py      (committed earlier) tested: server returns HTTP 200 with the disclaimer
+  scripts/refit_local_model.py   Kaggle pickled the model with sklearn 1.6.1; the Codespace
+                   has 1.9.1. This refits the same acoustic+SVM on the downloaded Kaggle
+                   features -> outputs/model.joblib, so the demo loads cleanly.
+  README.md        summary + disclaimer, dataset + citation, Mermaid diagram, full results
+                   table, plots, speaker-level results, leakage comparison, confound check,
+                   how to run, limitations. EVERY number comes from the Kaggle run or
+                   the 16 kHz check on its features.
+Checks: pytest -> 18 passed; ruff -> clean
+
+>>> YOUR COMMANDS FOR M7:
+    git add README.md docs/results scripts/refit_local_model.py info.txt
+    git status          # .env, data/, outputs/ must NOT appear
+    git commit -m "M6/M7: full Kaggle results, README with real numbers, local model refit"
+    git push
+
+>>> RUN THE DEMO YOURSELF:
+    python scripts/refit_local_model.py      # only needed once, after downloading outputs
+    python -m app.demo                       # open the forwarded port 7860 in Codespaces
+
+ACCEPTANCE CRITERIA (SPEC §10)
+  [x] Speaker-leakage test passes for all folds (tests/test_split.py + runtime assert)
+  [x] Results table: 3 feature sets x 4 models, mean ± std
+  [x] Full pipeline reproducible on Kaggle from a single notebook run (version 2)
+  [x] Demo runs locally on CPU with the disclaimer shown
+  [x] README reports real numbers only and lists limitations

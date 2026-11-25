@@ -1,0 +1,15 @@
+{
+  "sample": null,
+  "features": [
+    "acoustic",
+    "wavlm",
+    "whisper"
+  ],
+  "n_recordings": 786,
+  "n_speakers": 46,
+  "seed": 42,
+  "best": {
+    "feature_set": "acoustic",
+    "model": "svm"
+  }
+}

@@ -1,0 +1,3 @@
+label,group,recordings,speakers,sample_rates,median_dur_s
+HC,EHC,349,22,16000,9.555
+PD,PD,437,24,"16000,44100",11.75
