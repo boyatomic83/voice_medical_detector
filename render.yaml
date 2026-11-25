@@ -1,0 +1,9 @@
+# Render Blueprint: free Docker web service for the Gradio demo.
+services:
+  - type: web
+    name: voice-parkinsons-screening
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    autoDeploy: true

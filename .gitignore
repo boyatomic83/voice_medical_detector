@@ -19,3 +19,8 @@ __pycache__/
 venv/
 *.egg-info/
 .ipynb_checkpoints/
+
+# Generated deployment bundle
+deploy/
+# Small deployed demo model (acoustic + SVM, ~140 KB) is tracked on purpose
+!models/model.joblib

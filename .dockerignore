@@ -1,0 +1,11 @@
+.env
+kaggle.json
+.git
+data/
+outputs/
+deploy/
+notebooks/
+docs/
+tests/
+**/__pycache__
+*.npy

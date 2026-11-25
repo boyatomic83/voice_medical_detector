@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 from pathlib import Path
 
 import joblib
@@ -18,6 +19,8 @@ from src.audio import chunk, preprocess
 from src.features_acoustic import extract_one, praat_features
 
 logger = logging.getLogger("demo")
+
+MAX_SECONDS = 30  # only the first 30 s of an upload are analysed
 
 DISCLAIMER = (
     "⚠️ **Research prototype. Not a medical diagnosis.** This model was trained on a small "
@@ -54,6 +57,7 @@ class Screener:
         y = preprocess(path, self.sr, self.cfg["audio"]["trim_top_db"])
         if y is None or y.size < self.sr // 2:
             raise ValueError("Could not read audio, or it is shorter than 0.5 s after trimming.")
+        y = y[: MAX_SECONDS * self.sr]  # bound CPU/RAM on small hosts (Render free: 512 MB)
         prob = float(self.bundle["model"].predict_proba(self._features(y))[0, 1])
         a = self.cfg["features"]["acoustic"]
         return prob, praat_features(y, self.sr, a["f0_min"], a["f0_max"])
@@ -88,7 +92,8 @@ def explain(prob: float, measures: dict[str, float], bundle: dict) -> str:
         f"it was trained on (threshold 50%). {perf}\n\n"
         "Voice measures computed from your recording (for context, not used as a diagnosis):\n\n"
         "| Measure | Value |\n|---|---|\n" + rows + "\n\n"
-        "Works best with a sustained vowel ('aaaa' for ~5 s) recorded in a quiet room."
+        "Works best with a sustained vowel ('aaaa' for ~5 s) recorded in a quiet room. "
+        f"Only the first {MAX_SECONDS} s are analysed."
     )
 
 
@@ -122,12 +127,13 @@ def main() -> None:
     from src.config import setup_logging
 
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--model", default="outputs/model.joblib")
-    ap.add_argument("--port", type=int, default=7860)
+    ap.add_argument("--model", default=os.environ.get("MODEL_PATH", "outputs/model.joblib"))
+    ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
+    ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", 7860)))
     ap.add_argument("--share", action="store_true")
     args = ap.parse_args()
     setup_logging()
-    build_app(args.model).launch(server_port=args.port, share=args.share)
+    build_app(args.model).launch(server_name=args.host, server_port=args.port, share=args.share)
 
 
 if __name__ == "__main__":

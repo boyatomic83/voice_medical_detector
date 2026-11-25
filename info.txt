@@ -273,3 +273,61 @@ ACCEPTANCE CRITERIA (SPEC §10)
   [x] Full pipeline reproducible on Kaggle from a single notebook run (version 2)
   [x] Demo runs locally on CPU with the disclaimer shown
   [x] README reports real numbers only and lists limitations
+
+---------------------------------------------------------
+DEPLOY: Hugging Face Space (free CPU, Gradio), bundle ready
+---------------------------------------------------------
+  scripts/build_hf_space.py  builds deploy/hf_space/ (gitignored):
+     app.py, app/demo.py, src/{audio,features_acoustic}.py, model.joblib (acoustic+SVM,
+     140 KB), requirements.txt (no torch; scikit-learn pinned to 1.9.1 = the pickle's
+     version), README.md with the Space config (gradio 6.32.0, python 3.12) + disclaimer.
+  Tested: clean virtualenv with ONLY those requirements -> app builds, predicts.
+          All pinned packages have Python 3.12 wheels.
+  .gitignore: added deploy/
+
+  To deploy you need a Hugging Face WRITE token:
+    1. https://huggingface.co/settings/tokens -> New token -> type "Write"
+    2. append to .env:   HF_TOKEN=hf_xxxxxxxx
+    3. Claude (or you) runs the upload (creates the Space if it doesn't exist).
+
+>>> YOUR COMMANDS:
+    git add scripts/build_hf_space.py .gitignore info.txt
+    git commit -m "Add Hugging Face Space bundle builder for the demo"
+    git push
+
+---------------------------------------------------------
+DEPLOY: Hugging Face blocked -> Render (free) instead
+---------------------------------------------------------
+  Hugging Face: 402 Payment Required. Gradio Spaces on free CPU now need PRO ($9/mo).
+  Nothing was created on your HF account. (scripts/build_hf_space.py is kept in case
+  you get PRO later: build it, then upload deploy/hf_space/.)
+
+  Render setup added:
+    Dockerfile             python:3.12-slim + requirements-deploy.txt (no torch), runs
+                           python -m app.demo on $PORT, non-root user
+    .dockerignore          keeps .env, data/, outputs/ OUT of the image
+    render.yaml            Blueprint: free Docker web service "voice-parkinsons-screening"
+    requirements-deploy.txt
+    models/model.joblib    the 140 KB acoustic+SVM model, TRACKED in git on purpose
+                           (Render builds from GitHub; outputs/ is ignored)
+    app/demo.py            reads HOST/PORT/MODEL_PATH env vars; analyses max 30 s of audio
+  Tested locally in Docker with a 512 MB limit (Render free = 512 MB):
+    starts in ~7 s, idle 243 MB; PD reading -> 100%, control vowel -> 0%
+    (both are TRAINING files, so this only proves the plumbing works);
+    248 s upload -> 340 MB, no out-of-memory kill.
+  pytest 18 passed, ruff clean.
+
+>>> YOUR STEPS:
+  1. Commit + push:
+       git add Dockerfile .dockerignore render.yaml requirements-deploy.txt models/model.joblib \
+               app/demo.py README.md .gitignore info.txt scripts/build_hf_space.py
+       git status        # .env must NOT be listed
+       git commit -m "Deploy: Dockerfile + Render blueprint for the Gradio demo"
+       git push
+  2. Go to https://render.com, sign up / log in with GitHub
+  3. Dashboard -> "New +" -> "Blueprint" -> connect repo boyatomic83/voice_medical_detector
+     -> it detects render.yaml -> "Apply"
+  4. Wait for the build (~5-10 min). Your URL will look like
+       https://voice-parkinsons-screening.onrender.com
+     Free instances sleep after ~15 min idle; the first visit then takes ~1 min.
+  Every git push to main redeploys automatically (autoDeploy: true).

@@ -118,6 +118,9 @@ python -m app.demo            # http://localhost:7860, add --share for a public 
 ```
 Upload or record a sustained vowel ("aaaa", ~5 s). The page shows the screening score, basic voice measures (F0, jitter, shimmer, HNR) and the disclaimer. The refit step retrains the best model from the downloaded Kaggle features with your local scikit-learn version, because pickles don't load reliably across versions.
 
+### Deploy (Render, free tier)
+The repo includes a `Dockerfile` (Python 3.12, no torch, ~240 MB RAM idle and ~340 MB peak in local tests at 512 MB) and a `render.yaml` blueprint. On [render.com](https://render.com), choose **New → Blueprint**, pick this repository and apply. The demo serves the tracked acoustic + SVM model in `models/model.joblib` (refit from the Kaggle features with `scripts/refit_local_model.py`). Free instances sleep when idle, so the first request can take about a minute.
+
 ### Repository layout
 ```
 configs/default.yaml   dataset slug, groups, paths, audio + model settings, seed
