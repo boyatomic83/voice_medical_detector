@@ -1,0 +1,21 @@
+# Secrets
+.env
+kaggle.json
+**/kaggle.json
+
+# Data & outputs (never commit the dataset)
+data/
+outputs/
+*.pt
+*.npy
+*.joblib
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+.ipynb_checkpoints/

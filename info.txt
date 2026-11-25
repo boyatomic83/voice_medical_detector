@@ -1,0 +1,204 @@
+VOICE DISEASE SCREENING: PROGRESS LOG + WHAT YOU NEED TO DO
+=========================================================
+(Claude writes the code and runs the tests. You do the git commits/pushes.)
+
+---------------------------------------------------------
+PLAN (SPEC.md §9, M1 -> M7)
+---------------------------------------------------------
+M1 scaffold/config/tests        -> DONE (see below)
+M2 inspect dataset, DATASET.md  -> DONE (slug: ieeeai/italian-parkinsons-voice-and-speech)
+M3 audio + acoustic features + grouped CV + baselines (--sample 20, CPU)
+M4 WavLM / Whisper embeddings with caching (--sample 10, CPU)
+M5 results.csv/md, confusion/ROC plots, feature importance, model.joblib
+M6 Kaggle notebook + kernel-metadata.json, push, poll, download outputs
+M7 Gradio demo + README with REAL numbers only
+
+---------------------------------------------------------
+SPEC vs REALITY: CONFLICTS / THINGS TO KNOW
+---------------------------------------------------------
+1. Dataset slug not set. Most "Parkinson" datasets on Kaggle are TABULAR (the UCI
+   Oxford CSV with 195 rows, e.g. debasisdotcom/parkinson-disease-detection). Those
+   have NO audio and NO usable speaker ID, so they can't be used with this spec.
+   A good fit that has raw .wav files AND one folder per speaker:
+     ieeeai/italian-parkinsons-voice-and-speech   (Italian PVS, Dimauro et al.)
+     classes: Young Healthy Control / Elderly Healthy Control / People with PD,
+     tasks: vowels (V*), sentences/words (B*, D*, FB*), reading passage (PR*).
+2. Repo name: SPEC says "voice-disease-detection", your GitHub repo is
+   boyatomic83/voice_medical_detector. The notebook will clone THAT URL.
+   The repo must be PUBLIC so Kaggle can git clone it (or the notebook breaks).
+3. Your .env has KAGGLE_TOKEN (new-style API token), not KAGGLE_USERNAME/KAGGLE_KEY.
+   Kaggle CLI 2.x reads it as KAGGLE_API_TOKEN. To use the CLI yourself:
+       set -a; . ./.env; set +a; export KAGGLE_API_TOKEN="$KAGGLE_TOKEN"
+   Auth works (I tested with `kaggle datasets list`).
+4. Codespace has Python 3.14; Kaggle uses ~3.11/3.12. That's why requirements.txt
+   uses version ranges instead of exact == pins: exact pins wouldn't install on both.
+5. .env is now in .gitignore. NEVER `git add -f .env`.
+
+---------------------------------------------------------
+M1: DONE
+---------------------------------------------------------
+Created:
+  .gitignore            (.env, kaggle.json, data/, outputs/, *.pt, *.npy, *.joblib)
+  requirements.txt      (range-pinned, works on CPU and Kaggle)
+  pyproject.toml        (ruff + pytest config)
+  configs/default.yaml  (slug, paths, sample rate, model names, seed, CV folds)
+  src/config.py         (load YAML, auto-detect /kaggle/input vs local, set_seed, logging)
+  src/*.py, app/demo.py (stubs for later milestones)
+  tests/conftest.py     (synthetic harmonic tone + noise fixture, no real data needed)
+  tests/test_config.py, tests/test_{split,audio,features}.py (skeletons)
+  folders: configs/ src/ app/ notebooks/ kaggle/ tests/ docs/ (data/ and outputs/ ignored)
+Checks: pytest -> 1 passed; ruff check -> clean; ruff format -> clean
+
+>>> YOUR COMMANDS FOR M1:
+    git add .gitignore requirements.txt pyproject.toml configs src app tests info.txt SPEC.md
+    git status          # confirm .env is NOT listed
+    git commit -m "M1: repo scaffold, config loader, requirements, gitignore, test skeleton"
+    git push
+
+>>> NEXT: M2.
+
+---------------------------------------------------------
+M2: DONE  (dataset = ieeeai/italian-parkinsons-voice-and-speech, CC BY 4.0)
+---------------------------------------------------------
+Findings (details in docs/DATASET.md):
+  * Speaker IDs EXIST: one folder per person.
+  * Dataset contains a DUPLICATE copy of everything + a .cache folder -> ignored.
+  * PD "28 people" = 28 session folders but only 24 unique people
+    (Roberto R, Nicola S, Vito S recorded in 2-3 sessions, same age in TAB_5.xlsx).
+    -> merged into one speaker_id each, otherwise CV would leak.
+  * Young controls (age 19-29, only 3 tasks) EXCLUDED by default: age/task confound.
+    Default task = PD (24 spk, 437 wav) vs Elderly HC (22 spk, 349 wav).
+  * CONFOUND: PD 2016 sessions are 44.1 kHz, controls are 16 kHz -> different
+    recording sessions. We resample to 16 kHz, but it goes in Limitations.
+Created:
+  configs/default.yaml   (slug set; groups {PD: PD, EHC: HC}; tasks: null)
+  src/data.py            (manifest builder: path,label,speaker_id,task,task_type,group,
+                          orig_sr,duration_s; skips corrupt files)
+  scripts/download_sample.py  (downloads 6 speakers/group, 84 wav, 111 MB -> data/sample/)
+  docs/DATASET.md
+  tests/test_data.py
+Sample manifest: PD 36 rec / 6 spk, HC 36 rec / 6 spk.
+Checks: pytest -> 5 passed; ruff -> clean
+
+>>> YOUR COMMANDS FOR M2:
+    git add configs src scripts docs tests info.txt
+    git status          # data/ and .env must NOT be listed
+    git commit -m "M2: dataset inspection, DATASET.md, manifest builder with speaker IDs"
+    git push
+
+  To re-download the sample yourself:
+    set -a; . ./.env; set +a; python scripts/download_sample.py
+
+---------------------------------------------------------
+M3: DONE  (audio + acoustic features + speaker-grouped CV + baselines)
+---------------------------------------------------------
+Created:
+  src/audio.py             load mono 16 kHz, trim silence, peak-normalise, 30 s chunking,
+                           corrupt files -> warning + skipped
+  src/features_acoustic.py MFCC(13)+delta mean/std (52) + F0 mean/std/range, jitter,
+                           shimmer, HNR via parselmouth (58 features), parallel extraction
+  src/split.py             StratifiedGroupKFold(5) by speaker_id + hard leakage assertion
+  src/models.py            logreg / SVM-RBF (calibrated) / RandomForest / MLP, each in a
+                           Pipeline(impute -> StandardScaler -> clf), class_weight=balanced
+                           (sklearn MLP has no class_weight; classes are ~56/44)
+  src/evaluate.py          acc, balanced acc, F1, sensitivity, specificity, ROC-AUC per fold,
+                           mean ± std, markdown table
+  src/train.py             CLI; --sample N spreads the N picks across speakers round-robin
+  tests/test_split.py      no speaker in both train/test; stratification; leakage detection
+  tests/test_audio.py, tests/test_features.py   (synthetic 150 Hz tone + noise)
+Verified: python -m src.train --sample 20 --features acoustic  -> runs end-to-end on CPU (~40 s)
+  (12 speakers only. These sample numbers are a smoke test, NOT results. Don't quote them.)
+Checks: pytest -> 14 passed; ruff -> clean
+
+>>> YOUR COMMANDS FOR M3:
+    git add src tests info.txt
+    git commit -m "M3: preprocessing, acoustic features, speaker-grouped CV, baseline models"
+    git push
+
+  Try it yourself:
+    python -m src.train --sample 20 --features acoustic --out outputs/sample_acoustic
+
+---------------------------------------------------------
+M4: DONE  (WavLM / Whisper embeddings with caching)
+---------------------------------------------------------
+Created:
+  src/features_ssl.py   microsoft/wavlm-base-plus (default) + openai/whisper-base encoder.
+                        Mean-pool of a configurable hidden layer (default last) over
+                        valid (non-padded) frames; clips >30 s chunked and chunk vectors
+                        averaged; torch.no_grad(); GPU if available.
+                        Cache: embeddings_<model>.npy + embeddings_<model>_index.csv
+                        (only missing recordings are extracted; a model/layer change
+                        invalidates the cache).
+                        Batching: batch_size 8 on GPU (length-sorted, attention mask),
+                        cpu_batch_size 1 on CPU (batching 30 s clips got the process
+                        killed at 7 GB RAM in this Codespace).
+  tests/test_ssl.py     cache, chunk averaging, bad-file skip, layer invalidation
+                        (fake encoder, so no model download in tests)
+  models.py: MLP early_stopping off (it crashed on tiny sample folds)
+Verified on CPU:
+  python -m src.train --sample 10 --features wavlm    -> OK (~5 min incl. download)
+  re-run                                              -> 20 cached, 0 extracted (~12 s)
+  python -m src.train --sample 5  --features whisper  -> OK
+Checks: pytest -> 15 passed; ruff -> clean
+
+>>> YOUR COMMANDS FOR M4:
+    git add src tests configs info.txt
+    git commit -m "M4: WavLM / Whisper-encoder embeddings with caching"
+    git push
+
+---------------------------------------------------------
+M5: DONE  (evaluation outputs, plots, explainability, final model)
+---------------------------------------------------------
+Added:
+  src/evaluate.py  plot_confusion / plot_roc (pooled out-of-fold predictions)
+  src/explain.py   permutation importance measured on HELD-OUT speakers (grouped folds),
+                   top-15 bar plot
+  src/train.py     now also writes:
+     results.csv / results.md / results_per_fold.csv   (feature set x model, mean ± std)
+     results_speaker_level.csv     (probabilities averaged per speaker)
+     results_leaky_record_split.*  (same models with a WRONG random record split,
+                                    to show how much speaker leakage inflates scores;
+                                    skip with --no-leaky)
+     confusion_<feat>_<model>.png, roc_<feat>_<model>.png  (best by balanced accuracy)
+     feature_importance.png/.csv   (acoustic baseline)
+     model.joblib + model_config.json  (best model retrained on all data, + config)
+  tests/test_train.py  end-to-end run on a synthetic dataset (checks all files exist)
+Verified: --sample 20 --features acoustic,wavlm -> all files produced (~9 min on CPU)
+Checks: pytest -> 16 passed; ruff -> clean
+
+>>> YOUR COMMANDS FOR M5:
+    git add src tests info.txt
+    git commit -m "M5: plots, permutation importance, speaker-level + leakage comparison, final model"
+    git push
+
+---------------------------------------------------------
+M6: PREPARED. Waiting for you to push to GitHub
+---------------------------------------------------------
+Kaggle clones the code from GitHub, and GitHub only has "Initial commit" right now.
+Your Kaggle username is atomicboyy (GitHub: boyatomic83).
+Created:
+  notebooks/kaggle_run.ipynb   nvidia-smi -> git clone github.com/boyatomic83/voice_medical_detector
+                               -> pip install -r requirements.txt
+                               -> python -m src.train --features acoustic,wavlm,whisper
+                                  --out /kaggle/working -> show tables
+  kaggle/kernel-metadata.json  id atomicboyy/voice-disease-screening, GPU on, internet on,
+                               private, dataset ieeeai/italian-parkinsons-voice-and-speech
+  requirements-demo.txt        gradio moved here so Kaggle doesn't install it
+                               (pip install -r requirements-demo.txt for the demo)
+
+>>> IF YOU HAVEN'T COMMITTED M1-M5 ONE BY ONE, YOU CAN DO IT ALL AT ONCE:
+    git add .
+    git status        # .env, data/, outputs/ must NOT appear
+    git commit -m "M1-M6: scaffold, dataset manifest, acoustic + SSL features, grouped CV, eval, Kaggle notebook"
+    git push
+
+>>> M6 commit (if you are committing per milestone):
+    git add notebooks kaggle requirements.txt requirements-demo.txt info.txt
+    git commit -m "M6: Kaggle notebook and kernel metadata"
+    git push
+
+  Then Claude runs (you can too):
+    set -a; . ./.env; set +a; export KAGGLE_API_TOKEN="$KAGGLE_TOKEN"
+    kaggle kernels push -p kaggle/
+    kaggle kernels status atomicboyy/voice-disease-screening
+    kaggle kernels output atomicboyy/voice-disease-screening -p outputs/

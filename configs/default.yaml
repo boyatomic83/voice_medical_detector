@@ -1,0 +1,42 @@
+# Default configuration for the voice-based disease screening pipeline.
+dataset:
+  slug: ieeeai/italian-parkinsons-voice-and-speech
+  kaggle_folder: null           # folder name under /kaggle/input (null = derived from slug)
+  local_dir: data/sample        # used when not running on Kaggle
+  positive_label: PD            # disease class name
+  negative_label: HC            # healthy control class name
+  # group -> label. YHC (young controls, ages 19-29, only B1/B2/PR1 tasks) is
+  # excluded by default: it would let a model learn age / task instead of PD.
+  groups: {PD: PD, EHC: HC}
+  tasks: null                   # e.g. [vowel] to restrict; null = all task types
+
+paths:
+  out_dir: outputs
+  cache_dir: outputs/cache
+
+audio:
+  sample_rate: 16000
+  trim_top_db: 30
+  max_chunk_seconds: 30
+
+features:
+  acoustic:
+    n_mfcc: 13
+    f0_min: 75
+    f0_max: 500
+  ssl:
+    wavlm:
+      model_name: microsoft/wavlm-base-plus
+      layer: -1               # hidden layer index to mean-pool (-1 = last)
+    whisper:
+      model_name: openai/whisper-base
+      layer: -1
+    batch_size: 8             # GPU batch size (chunks are length-sorted to limit padding)
+    cpu_batch_size: 1         # CPU: no padding, low RAM
+
+cv:
+  n_splits: 5
+
+models: [logreg, svm, rf, mlp]
+
+seed: 42

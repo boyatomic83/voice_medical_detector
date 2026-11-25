@@ -1,0 +1,20 @@
+# Compatible-release pins (~=) so the same file installs on the Codespace
+# (Python 3.14, CPU) and on Kaggle (Python 3.11/3.12, GPU, torch preinstalled).
+numpy>=1.26,<3
+pandas>=2.1,<4
+scikit-learn>=1.4,<2
+scipy>=1.11,<2
+librosa>=0.10,<2
+soundfile>=0.12,<1
+praat-parselmouth>=0.4.3,<0.5
+matplotlib>=3.8,<4
+joblib>=1.3,<2
+PyYAML>=6.0,<7
+tqdm>=4.66,<5
+# SSL embeddings (torch is preinstalled on Kaggle; on CPU install from the
+# PyTorch CPU index: pip install torch --index-url https://download.pytorch.org/whl/cpu)
+torch>=2.1
+transformers>=4.40,<6
+# Dev
+pytest>=8,<10
+ruff>=0.5
