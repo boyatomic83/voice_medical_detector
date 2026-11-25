@@ -34,3 +34,11 @@ def test_chunking():
     assert [len(c) // SR for c in parts] == [30, 30, 5]
     assert sum(map(len, chunk(np.zeros(SR * 60 + 100), SR, 30))) == SR * 60 + 100
     assert len(chunk(np.zeros(SR * 60 + 100), SR, 30)) == 2  # tiny tail merged
+
+
+def test_chunking_preserves_content():
+    for n in [SR * 30 + 100, SR * 60 + 100, SR * 65, SR * 10]:
+        y = np.arange(n, dtype=np.float32)
+        parts = chunk(y, SR, 30)
+        np.testing.assert_array_equal(np.concatenate(parts), y)
+        assert all(len(c) >= SR for c in parts)

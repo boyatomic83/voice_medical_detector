@@ -46,7 +46,8 @@ def chunk(y: np.ndarray, sr: int, max_seconds: float = 30.0) -> list[np.ndarray]
         return [y]
     chunks = [y[i : i + size] for i in range(0, y.size, size)]
     if len(chunks) > 1 and chunks[-1].size < sr:
-        chunks[-2] = np.concatenate([chunks[-2], chunks.pop()])
+        tail = chunks.pop()
+        chunks[-1] = np.concatenate([chunks[-1], tail])
     return chunks
 
 

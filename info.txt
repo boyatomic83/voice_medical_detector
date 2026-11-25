@@ -202,3 +202,27 @@ Created:
     kaggle kernels push -p kaggle/
     kaggle kernels status atomicboyy/voice-disease-screening
     kaggle kernels output atomicboyy/voice-disease-screening -p outputs/
+
+---------------------------------------------------------
+M6: KAGGLE RUN #1 FAILED (my bug, now fixed). Need a push to re-run
+---------------------------------------------------------
+What happened (kernel version 1):
+  * Full manifest OK on Kaggle: PD 437 rec / 24 spk, HC 349 rec / 22 spk.
+    Confirmed: PD includes 44.1 kHz files, all HC are 16 kHz (session confound).
+  * Acoustic features finished; WavLM download OK.
+  * CRASH in src/audio.py chunk(): IndexError on a recording that split into exactly
+    2 chunks with a <1 s tail. Root cause: the tail was popped BEFORE indexing [-2].
+    With 3+ chunks it didn't crash, but it put the merged tail into the wrong chunk.
+    The old test only checked total length, so it missed this.
+  * Fix: pop tail, then append it to the (new) last chunk. New test checks that
+    the chunks concatenate back to the exact original signal.
+Also added (M7 in progress):
+  app/demo.py, app/__init__.py   Gradio demo (upload/record -> score + voice measures,
+                                 disclaimer shown twice). Tested on a sample file.
+  tests/test_demo.py
+Checks: pytest -> 18 passed; ruff -> clean
+
+>>> YOUR COMMANDS (needed before the Kaggle re-run):
+    git add src/audio.py tests app info.txt
+    git commit -m "Fix chunk() tail merge bug (Kaggle run crash); add Gradio demo"
+    git push
