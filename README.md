@@ -2,6 +2,8 @@
 
 A reproducible machine-learning pipeline that screens for Parkinson's disease (PD) from voice recordings. It compares a classic acoustic-feature baseline (MFCCs, jitter, shimmer, HNR, F0) with self-supervised speech embeddings (WavLM, Whisper encoder). All models are evaluated with **speaker-independent** cross-validation. The repo includes a small Gradio demo.
 
+**Live demo:** https://voice-parkinsons-screening.onrender.com (free tier: the first visit after idle can take ~1 min to wake)
+
 > ⚠️ **Research prototype. Not a medical diagnosis.** This is not a diagnostic tool, it has not been clinically validated, and it must not be used to make health decisions.
 
 ---

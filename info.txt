@@ -331,3 +331,15 @@ DEPLOY: Hugging Face blocked -> Render (free) instead
        https://voice-parkinsons-screening.onrender.com
      Free instances sleep after ~15 min idle; the first visit then takes ~1 min.
   Every git push to main redeploys automatically (autoDeploy: true).
+
+---------------------------------------------------------
+LIVE: https://voice-parkinsons-screening.onrender.com
+---------------------------------------------------------
+  Verified 2026-11-26: HTTP 200, disclaimer on page, and a real upload through the
+  API returned a score (control vowel -> 0%, ~10 s).
+  README now links the live demo. tech.md = the full learning guide.
+
+>>> YOUR COMMANDS:
+    git add README.md info.txt tech.md
+    git commit -m "Add live demo link and tech.md learning guide"
+    git push
